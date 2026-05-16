@@ -8,12 +8,6 @@
 import SwiftUI
 
 
-struct Route: Codable {
-    let routeDistanceM: Int
-    let routeDuractionSec: Int
-}
-
-
 enum TransitOption: String, CaseIterable, Identifiable {
     case driving = "driving"
     case walking = "walking"
@@ -132,9 +126,22 @@ struct ContentView: View {
             Button("Find Route") {
                 Task {
                     do {
-                        try await findRoute()
+                        try await findRoute(
+                            originLat: originLat,
+                            originLon: originLon,
+                            destinationLat: destinationLat,
+                            destinationLon: destinationLon,
+                            transitOption: selectedTransit.rawValue,
+                            optimizationOption: selectedOptimitzation.rawValue
+                        )
+                    } catch RequestError.invalidURL {
+                        print("Invalid URL")
+                    } catch RequestError.invalidResponse {
+                        print("Invalid response")
+                    } catch RequestError.invalidData {
+                        print("Invalid data")
                     } catch {
-                        print("Unsuccessful")
+                        print("Errors encountered")
                     }
                 }
             }
@@ -149,16 +156,62 @@ struct ContentView: View {
         .padding()
     }
     
-    func findRoute() async throws -> () {
-        print($originLat)
-        print($originLon)
-        print($destinationLat)
-        print($destinationLon)
-        print($selectedTransit)
-        print($selectedOptimitzation)
+    func findRoute(
+        originLat: Double,
+        originLon: Double,
+        destinationLat: Double,
+        destinationLon: Double,
+        transitOption: String,
+        optimizationOption: String
+    ) async throws -> () {
+//        print(originLat)
+//        print(originLon)
+//        print(destinationLat)
+//        print(destinationLon)
+//        print(transitOption)
+//        print(optimizationOption)
         
-        return
+        
+//        let endpoint = "http://127.0.0.1:5000/find-nearest-dog-park?q=\(addressNum)%20\(street)%20\(city)%20\(state)%20\(zip)"
+        
+//        let endpoint = "http://classwork.engr.oregonstate.edu:45533/find-route?origin_lat=44.5545673&origin_lon=-123.2845478&destination_lat=44.5642592&destination_lon=-123.2754931&transit=driving&optimization=time
+        let endpoint = "http://127.0.0.1:5000/find-route?origin_lat=\(originLat)&origin_lon=\(originLon)&destination_lat=\(destinationLat)&destination_lon=\(destinationLon)&transit_mode=\(transitOption)&optimization_mode=\(optimizationOption)"
+        
+        print(endpoint)
+        
+        guard let url = URL(string: endpoint) else {
+            throw RequestError.invalidURL
+        }
+        
+        let (data, response) = try await URLSession.shared.data(from: url)
+        
+        guard let response = response as? HTTPURLResponse, response.statusCode == 200 else {
+            throw RequestError.invalidResponse
+        }
+        
+        do {
+            let decoder = JSONDecoder()
+//            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            let routeResult = try decoder.decode(Route.self, from: data)
+            print(routeResult.route_distance_m)
+            print(routeResult.route_duration_sec)
+            return
+        } catch {
+            throw RequestError.invalidData
+        }
     }
+}
+
+struct Route: Codable {
+    let route_distance_m: String
+    let route_duration_sec: String
+    
+}
+
+enum RequestError: Error {
+    case invalidURL
+    case invalidResponse
+    case invalidData
 }
 
 #Preview {
